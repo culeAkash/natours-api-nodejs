@@ -1,40 +1,75 @@
 // We will have all the express configuration in app.js
 const express = require('express');
 const fs = require('fs');
+const bodyParser = require('body-parser');
+
 
 const app = express();
 const port = 8000;
 
 
 // For parsing data coming in post request
-app.use(express.json());
+// app.use(express.json());
+app.use(bodyParser.json());
 
 
-// app.get('/', (req, res, next) => {
-//   res.status(201);
-//   const response = {
-//     namr: 'Akash Jaiswal',
-//     field: 'Engg'
-//   }
-//   res.send(response)
-// })
+// Declaring our own middleware
+app.use((req, res, next) => {
+  req.requestTime = new Date().toISOString();
+  next();
+})
 
 const tours = JSON.parse(fs.readFileSync(`${__dirname}/dev-data/data/tours.json`));
 
 
-// get requests
-app.get('/api/v1/tours', (req, res, next) => {
+//method for getting all routes
+const getAllTours = (req, res, next) => {
   res.status(200).json({
     status: 'success',
+    requestedAt: req.requestTime,
     results: tours.length,
     data: {
-      tour: tours[0]
+      tour: tours
     }
   });
-})
+}
 
-//handling post request
-app.post('/api/v1/tours', (req, res, next) => {
+//Get tour by id handler
+const getTourById = (req, res, next) => {
+  //variables are present in req.params wrapped in an object
+
+  console.log(req.params);
+
+  const reqId = req.params.id;
+
+
+
+  const tour = tours.filter(elem => {
+    // console.log(elem._id);
+    // console.log(reqId, "reqId");
+    return elem._id === reqId;
+  })
+
+  console.log(tour);
+
+  if (tour.length === 0) {
+    return res.status(404).json({
+      status: "NOT FOUND",
+      message: `Tour not found for tourId ${reqId}`
+    })
+  }
+
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      tour
+    }
+  });
+}
+
+// Create new tour handler
+const createNewTour = (req, res, next) => {
   // We have to add a middleware for this to work
   console.log(req.body);
 
@@ -62,30 +97,132 @@ app.post('/api/v1/tours', (req, res, next) => {
       }
     })
   })
+}
+
+//Update Tour handler
+
+const updateTour = (req, res) => {
+
+  const reqId = req.params.id;
+
+  const tour = tours.filter(elem => {
+    // console.log(elem._id);
+    // console.log(reqId, "reqId");
+    return elem._id === reqId;
+  })
+
+  console.log(tour);
+
+  if (tour.length === 0) {
+    return res.status(404).json({
+      status: "NOT FOUND",
+      message: `Tour not found for tourId ${reqId}`
+    })
+  }
+
+
+  res.status(200).json({
+    status: 'success',
+    data: '<Updated tour here...>'
+  });
+}
+
+
+//Delete tour handler
+const deleteTour = (req, res, next) => {
+  const reqId = req.params.id;
+
+  const tour = tours.filter(elem => {
+    // console.log(elem._id);
+    // console.log(reqId, "reqId");
+    return elem._id === reqId;
+  })
+
+  console.log(tour);
+
+  if (tour.length === 0) {
+    return res.status(404).json({
+      status: "NOT FOUND",
+      message: `Tour not found for tourId ${reqId}`
+    })
+  }
+
+
+  res.status(204).json({
+    status: 'success',
+    data: null
+  });
+}
+
+
+// User route handlers
+const getAllUsers = (req, res) => {
+  res.status(500).json({
+    status: "error",
+    message: "This route is not yet defined"
+  })
+}
+
+const createNewUser = (req, res) => {
+  res.status(500).json({
+    status: "error",
+    message: "This route is not yet defined"
+  })
+}
+
+const getUserById = (req, res) => {
+  res.status(500).json({
+    status: "error",
+    message: "This route is not yet defined"
+  })
+}
+
+const updateUser = (req, res) => {
+  res.status(500).json({
+    status: "error",
+    message: "This route is not yet defined"
+  })
+}
+
+const deleteUser = (req, res) => {
+  res.status(500).json({
+    status: "error",
+    message: "This route is not yet defined"
+  })
+}
 
 
 
-})
+// get requests
+app.get('/api/v1/tours', getAllTours);
+
+//Get tour by id
+app.get('/api/v1/tours/:id', getTourById);
 
 
+//handling post request
+app.post('/api/v1/tours', createNewTour);
 
 
+// Using PATCH requests
+app.patch('/api/v1/tours/:id', updateTour)
 
 
+//Using delete router
+app.delete('/api/v1/tours/:id', deleteTour);
 
 
+//User routes
+app.
+  route('/api/v1/users')
+  .get(getAllUsers)
+  .post(createNewUser);
 
-
-
-
-
-
-
-
-
-
-
-
+app.
+  route('/api/v1/users/:id')
+  .get(getUserById)
+  .patch(updateUser)
+  .delete(deleteUser);
 
 
 
