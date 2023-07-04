@@ -1,7 +1,7 @@
 // We will have all the express configuration in app.js
 const express = require('express');
 const fs = require('fs');
-const bodyParser = require('body-parser');
+// const bodyParser = require('body-parser');
 const morgan = require('morgan');
 
 
@@ -13,7 +13,7 @@ const app = express();
 
 
 // For parsing data coming in post request
-// app.use(express.json());
+app.use(express.json());
 
 console.log(process.env.NODE.ENV);
 if (process.env.NODE_ENV === 'development') {
