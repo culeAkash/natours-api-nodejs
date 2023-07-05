@@ -52,7 +52,9 @@ const toursSchema = new mongoose.Schema({
   images: [String],
   createdAt: {
     type: Date,
-    default: Date.now() //current date and time when the user is created
+    default: Date.now(), //current date and time when the user is created
+    //Hide this property from response by default
+    select: false
   },
   startDates: [Date]
 });

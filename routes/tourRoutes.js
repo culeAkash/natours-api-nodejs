@@ -10,6 +10,7 @@ const {
   createNewTour,
   checkID,
   checkBody,
+  aliasTopTours
 } = require('../controllers/tourController');
 
 // Map the given param placeholder name(s) to the given callback(s).
@@ -20,6 +21,12 @@ router.param('id', checkID);
 //It will be executed only for requests having a param
 
 // Routes
+
+//Route for some special URL
+//aliasTopTours middleware will run first and then gatAllTours
+router.route('/top-5-cheap').get(aliasTopTours, getAllTours)
+
+
 router
   .route('/')
   .get(getAllTours)

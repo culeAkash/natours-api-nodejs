@@ -31,6 +31,14 @@ exports.checkID = (req, res, next, id) => {
 
 
 
+exports.aliasTopTours = (req, res, next) => {
+  req.query.limit = '5';
+  req.query.sort = '-ratingsAverage,price';
+  req.query.fields = 'name,price,ratingsAverage,summary,description';
+
+  next();
+}
+
 
 // method for getting all routes
 exports.getAllTours = async (req, res, next) => {
@@ -55,6 +63,7 @@ exports.getAllTours = async (req, res, next) => {
     // 1B) Advanaced filtering
     let queryStr = JSON.stringify(queryObject);
 
+    // match for the conditional parameters and replace by appending $ sign to be used as mongoose query params
     queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => {
       return `$${match}`;
     })
@@ -77,23 +86,62 @@ exports.getAllTours = async (req, res, next) => {
 
     // 2) Sorting
     if (req.query.sort) {
+      //In the query param that we are sending from postman, sorting params are seperated by (,), replace them with (' '), as it the standard taken by sort() mongoose function
       const sortBy = req.query.sort.split(',').join(' ');
       query = query.sort(sortBy);
       //if price is same sort by ratingsAverage
       // sort('price ratingsAverage')
     }
     else {
+      //default sorting by creation time so that latest added tours appear first
       query = query.sort('-createdAt');
     }
 
 
+    // 3) Field limiting
+    // Limit the response data to required fields given by the user only
+    if (req.query.fields) {
+      const fields = req.query.fields.split(',').join(' ');
+      query = query.select(fields);
+    } else {
+      //If no field parameter provided then select all default fields except __v
+      query = query.select('-__v');// excluded the __v from the document
+    }
+
+
+
+
+    // 4) Pagination
+
+    // skip(num) skip <num> no. of documents before querying data
+    // limit() no. of documents can be limited by this
+    // page=2 & limit=5 ==> Skip 5 docs and then return next 5
+    // ==> query.skip((page-1)*limit).limit(limit)
+    const page = req.query.page * 1 || 1;
+    const limit = req.query.limit * 1 || 100;
+
+    const skip = (page - 1) * limit;
+
+    // Example query : query.skip(2).limit(5)
+    query = query.skip(skip).limit(limit);
+
+    //if the page doesn't exist => we don't have enough data
+    if (req.query.page) {
+      const numberOfTours = await Tour.countDocuments();
+      if (skip >= numberOfTours) throw new Error("This page doesn't exist");
+    }
+
+
+    // EXECUTE QUERY
 
     // const query = Tour.find()
     // .where('duration').equals(5)
     // .where('difficulty').equals('easy');
 
-    // EXECUTE QUERY
+
     const tours = await query;
+    // query.sort().select().skip().limit()
+    // All these methods return query which can ba again chained with other query methods and then awaited to get our final results
 
     //SEND RESPONSE
     //Now documents are fetched from DB
