@@ -36,8 +36,67 @@ exports.checkID = (req, res, next, id) => {
 exports.getAllTours = async (req, res, next) => {
 
   try {
-    const tours = await Tour.find();
+    //Contains all the query params for filtering
+    console.log(req.query);
 
+
+    // BUILD QUERY
+    //1A) Filtering
+    const queryObject = { ...req.query };
+
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+
+    excludedFields.forEach(fi => delete queryObject[fi]);
+
+
+    console.log(req.query, queryObject);
+
+
+    // 1B) Advanaced filtering
+    let queryStr = JSON.stringify(queryObject);
+
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => {
+      return `$${match}`;
+    })
+
+    console.log(queryStr);
+
+
+
+    // {difficulty : 'easy',duration : {$gte : 5}}
+    //gte , gt ,lte ,lt
+
+
+
+    //find() method returns a query which is then executed when await is used, so if we want to implement pagination or sorting we have to store the query only and implement it later
+    // const tours = await Tour.find(queryObject);
+    let query = Tour.find(JSON.parse(queryStr));
+    // console.log(query);
+    // This will only contain the query not the documents, in order to fetch docs we have to await the query execution
+
+
+    // 2) Sorting
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' ');
+      query = query.sort(sortBy);
+      //if price is same sort by ratingsAverage
+      // sort('price ratingsAverage')
+    }
+    else {
+      query = query.sort('-createdAt');
+    }
+
+
+
+    // const query = Tour.find()
+    // .where('duration').equals(5)
+    // .where('difficulty').equals('easy');
+
+    // EXECUTE QUERY
+    const tours = await query;
+
+    //SEND RESPONSE
+    //Now documents are fetched from DB
     res.status(200).json({
       status: 'success',
       results: tours.length,
