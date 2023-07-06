@@ -9,26 +9,26 @@ const ApiFeatures = require('../utils/ApiFeatures')
 //For testing only
 // const tours = JSON.parse(fs.readFileSync('./dev-data/data/tours.json'));
 
-exports.checkID = (req, res, next, id) => {
+// exports.checkID = (req, res, next, id) => {
 
-  console.log('inside param middleware');
+//   console.log('inside param middleware');
 
-  // const tour = tours.filter(elem => {
-  // console.log(elem._id);
-  // console.log(reqId, "reqId");
-  //   return elem._id === id;
-  // })
+// const tour = tours.filter(elem => {
+// console.log(elem._id);
+// console.log(reqId, "reqId");
+//   return elem._id === id;
+// })
 
-  // console.log(tour);
+// console.log(tour);
 
-  // if (tour.length === 0) {
-  //   return res.status(404).json({
-  //     status: "NOT FOUND",
-  //     message: `Tour not found for tourId ${id}`
-  //   })
-  // }
-  next();
-}
+// if (tour.length === 0) {
+//   return res.status(404).json({
+//     status: "NOT FOUND",
+//     message: `Tour not found for tourId ${id}`
+//   })
+// }
+//   next();
+// }
 
 
 
@@ -102,7 +102,7 @@ exports.getTourById = async (req, res, next) => {
   } catch (error) {
     res.status(500).json({
       status: 'fail',
-      message: "ERROR"
+      message: error
     })
   }
 }
