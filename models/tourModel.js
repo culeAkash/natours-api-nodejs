@@ -7,7 +7,9 @@ const toursSchema = new mongoose.Schema({
     type: String,
     trim: true,
     required: [true, 'A tour must have a name'],
-    unique: [true, 'A tour with this name is already present']
+    unique: [true, 'A tour with this name is already present'],
+    maxlength: [40, "A tour can't have more than 40 characters"],
+    minlength: [10, "A tour can't have less than 10 characters"]
   },
   duration: {
     type: Number,
@@ -19,11 +21,17 @@ const toursSchema = new mongoose.Schema({
   },
   difficulty: {
     type: String,
-    required: [true, 'A tour must have difficulty']
+    required: [true, 'A tour must have difficulty'],
+    enum: {
+      values: ['easy', 'medium', 'difficult'],
+      message: 'Difficulty must be easy, medium or difficult'
+    }
   },
   ratingsAverage: {
     type: Number,
-    default: 0
+    default: 0,
+    min: [1, "Rating must be greater than 0"],
+    max: [5, "Rating must be less than 5"]
   },
   ratingsQuantity: {
     type: Number,
@@ -34,7 +42,17 @@ const toursSchema = new mongoose.Schema({
     required: [true, 'A tour must have a price']
   },
   discount: {
-    type: Number
+    type: Number,
+    // custom validator
+    validate: {
+      validator: function (val) {
+        // doesn't work on update document, as this will not point to current doc in that case
+        // the discount will be invalid if it is more than the price of the tour
+        return val < this.price // 100 < 200
+        //{this} will contain the current document
+      },
+      message: "The discount must be less than actual price"
+    }
   },
   summary: {
     type: String,
@@ -53,11 +71,39 @@ const toursSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now(), //current date and time when the user is created
-    //Hide this property from response by default
+    //Hide this property from response by default 
     select: false
   },
   startDates: [Date]
+  // secretTour: {
+  //   type: Boolean,
+  //   default: false
+  // }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// this is injected to thd doc when it is converted to object or json , but not persisted in database
+toursSchema.virtual('durationWeeks').get(function () {
+  return this.duration / 7;
+})
+
+
+// QUERY MIDDLEWARE
+// toursSchema.pre('find', function (next) {
+// this keyword points to the mongo query to which more methods can be chained
+//   this.find({ secretTour: { $ne: true } });
+//   next();
+// })
+
+
+// document middleware that will run on running save() or create() before the actual processing in DB
+// toursSchema.pre("save", function (next) {
+//   console.log(this);
+//   next();
+// })
+
 
 //Creation of models for tours
 const Tour = mongoose.model('Tour', toursSchema);

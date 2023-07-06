@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const Tour = require('../models/tourModel')
+const ApiFeatures = require('../utils/ApiFeatures')
 
 
 //For testing only
@@ -13,8 +14,8 @@ exports.checkID = (req, res, next, id) => {
   console.log('inside param middleware');
 
   // const tour = tours.filter(elem => {
-  //   // console.log(elem._id);
-  //   // console.log(reqId, "reqId");
+  // console.log(elem._id);
+  // console.log(reqId, "reqId");
   //   return elem._id === id;
   // })
 
@@ -44,102 +45,20 @@ exports.aliasTopTours = (req, res, next) => {
 exports.getAllTours = async (req, res, next) => {
 
   try {
-    //Contains all the query params for filtering
-    console.log(req.query);
-
-
-    // BUILD QUERY
-    //1A) Filtering
-    const queryObject = { ...req.query };
-
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
-
-    excludedFields.forEach(fi => delete queryObject[fi]);
-
-
-    console.log(req.query, queryObject);
-
-
-    // 1B) Advanaced filtering
-    let queryStr = JSON.stringify(queryObject);
-
-    // match for the conditional parameters and replace by appending $ sign to be used as mongoose query params
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => {
-      return `$${match}`;
-    })
-
-    console.log(queryStr);
-
-
-
-    // {difficulty : 'easy',duration : {$gte : 5}}
-    //gte , gt ,lte ,lt
-
-
-
-    //find() method returns a query which is then executed when await is used, so if we want to implement pagination or sorting we have to store the query only and implement it later
-    // const tours = await Tour.find(queryObject);
-    let query = Tour.find(JSON.parse(queryStr));
-    // console.log(query);
-    // This will only contain the query not the documents, in order to fetch docs we have to await the query execution
-
-
-    // 2) Sorting
-    if (req.query.sort) {
-      //In the query param that we are sending from postman, sorting params are seperated by (,), replace them with (' '), as it the standard taken by sort() mongoose function
-      const sortBy = req.query.sort.split(',').join(' ');
-      query = query.sort(sortBy);
-      //if price is same sort by ratingsAverage
-      // sort('price ratingsAverage')
-    }
-    else {
-      //default sorting by creation time so that latest added tours appear first
-      query = query.sort('-createdAt');
-    }
-
-
-    // 3) Field limiting
-    // Limit the response data to required fields given by the user only
-    if (req.query.fields) {
-      const fields = req.query.fields.split(',').join(' ');
-      query = query.select(fields);
-    } else {
-      //If no field parameter provided then select all default fields except __v
-      query = query.select('-__v');// excluded the __v from the document
-    }
-
-
-
-
-    // 4) Pagination
-
-    // skip(num) skip <num> no. of documents before querying data
-    // limit() no. of documents can be limited by this
-    // page=2 & limit=5 ==> Skip 5 docs and then return next 5
-    // ==> query.skip((page-1)*limit).limit(limit)
-    const page = req.query.page * 1 || 1;
-    const limit = req.query.limit * 1 || 100;
-
-    const skip = (page - 1) * limit;
-
-    // Example query : query.skip(2).limit(5)
-    query = query.skip(skip).limit(limit);
-
-    //if the page doesn't exist => we don't have enough data
-    if (req.query.page) {
-      const numberOfTours = await Tour.countDocuments();
-      if (skip >= numberOfTours) throw new Error("This page doesn't exist");
-    }
-
 
     // EXECUTE QUERY
+    const features = new ApiFeatures(Tour.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
 
     // const query = Tour.find()
     // .where('duration').equals(5)
     // .where('difficulty').equals('easy');
 
 
-    const tours = await query;
+    const tours = await features.mongoQuery;
     // query.sort().select().skip().limit()
     // All these methods return query which can ba again chained with other query methods and then awaited to get our final results
 
@@ -269,9 +188,102 @@ exports.deleteTour = async (req, res, next) => {
 }
 
 
+exports.getTourStats = async (req, res, next) => {
+
+  try {
+    const stats = await Tour.aggregate([
+      //stages : doc will pass through all these stages
+      {
+        $match: {
+          ratingsAverage: { $gt: 4.5 }
+        }
+      },
+      {
+        $group: {
+          // _id: null,
+          // _id: '$ratingsAverage',
+          // _id: '$difficulty',
+          _id: { $toUpper: '$difficulty' },
+          numTours: { $sum: 1 },
+          numRatings: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' }
+        }
+      }, {
+        $sort: { avgPrice: 1 }
+      },
+      {
+        $match: { _id: { $ne: "EASY" } }
+      }
+    ])
 
 
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'fail',
+      message: error
+    })
+  }
+}
 
+
+exports.getMonthlyPlan = async (req, res, next) => {
+  try {
+    const year = req.params.year * 1;//2021
+    const plan = await Tour.aggregate([
+      {
+        $unwind: '$startDates'
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`) //end of
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' },
+          numTours: { $sum: 1 },
+          tours: { $push: '$name' }
+        }
+      }, {
+        $addFields: { month: '$_id' }
+      }, {
+        $project: {
+          _id: 0
+        }
+      }, {
+        $sort: { numTours: -1 }// sort by number of tour in descending order
+      }, {
+        $limit: 12// return only top n records if specified
+      }
+    ])
+
+
+    res.status(200).json({
+      status: 'success',
+      size: plan.length,
+      data: {
+        plan
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'fail',
+      message: error
+    })
+  }
+}
 
 
 
