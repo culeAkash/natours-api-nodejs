@@ -1,9 +1,32 @@
 // Global error handling middleware
 
+const AppError = require("../utils/AppError")
 
-// TODO : NOW, WHENEVER THERE IS AN ERROR GIVEN BY MONGOOSE, LIKE VALIDATION OR INVALID ID THEY ARE NOT THROWN BY US. SO, THE ISOPERATIONAL IS NULL THERE BUT WE ALSO WANT TO SHOW DETAILS ABOUT THOSE ERRORS IN PRODUCTION. WE WILL TAKE CARE OF THAT IN NEXT STEPS
+// Handle error that are produced when user gives some data in wrong format
+// Converts castError to AppError, to set isOperational = true, to handle as trusted error
+const handleCastErrorDB = (err) => {
+  const message = `Invalid ${err.path}: ${err.value}`
+  return new AppError(message, 400);
+}
+
+
+// handle error for duplicating unique field, it is managed by mongoDB driver and not mongoose
+const handleDuplicateFieldsDB = (err) => {
+  const message = `Duplicate field value : ${err.keyValue.name} : Please use another value!`
+  return new AppError(message, 400);
+}
+
+
+//handle validation error in prod given by mongoose
+const handleValidationErrorDB = (err) => {
+  const errors = Object.values(err.errors).map(elem => elem.message);
+
+  const message = `Invalid input data. ${errors.join('. ')}`
+  return new AppError(message, 400)
+}
 
 const sendErrorDev = (err, res) => {
+  console.log(err.name, '13');
   res.status(err.statusCode).json({
     status: err.status,
     error: err,
@@ -28,7 +51,7 @@ const sendErrorProd = (err, res) => {
 
   else {
     // TODO : Log the error to the console
-    console.log('Error : ', err);
+    // console.log('Error : ', err);
 
     // ? Send generic message
     res.status(500).json({
@@ -41,20 +64,31 @@ const sendErrorProd = (err, res) => {
 
 module.exports = (err, req, res, next) => {
 
-  console.log(err.stack);
+  // console.log(err.stack);
 
-  const statusCode = err?.statusCode || 500;
-  const status = err?.status || 'error';
+  err.statusCode = err?.statusCode || 500;
+  err.status = err?.status || 'error';
 
 
   // * we want to send errors based on environment
   const currEnv = process.env.NODE_ENV;
 
   if (currEnv === 'development') {
+    console.log(err.name, '61');
     sendErrorDev(err, res);
   }
   else if (currEnv === 'production') {
-    sendErrorProd(err, res);
+
+    let error = { ...err };
+
+    if (err.name === 'CastError') error = handleCastErrorDB(error)
+
+    if (err.code === 11000) error = handleDuplicateFieldsDB(error);
+
+    if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
+
+    sendErrorProd(error, res);
+    // res.json({})
   }
 }
 

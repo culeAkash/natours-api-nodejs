@@ -73,12 +73,7 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
       tours
     }
   })
-  // } catch (error) {
-  //   res.status(500).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
+
 
 })
 
@@ -90,7 +85,6 @@ exports.getTourById = catchAsync(async (req, res, next) => {
 
   const reqId = req.params.id;
 
-  // try {cat
   const tour =
     // await Tour.findById(reqId);
     await Tour.findOne({ _id: req.params.id })
@@ -105,12 +99,7 @@ exports.getTourById = catchAsync(async (req, res, next) => {
       tour
     }
   })
-  // } catch (error) {
-  //   res.status(500).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
+
 })
 
 
@@ -118,16 +107,7 @@ exports.getTourById = catchAsync(async (req, res, next) => {
 
 // Create new tour handler
 exports.createNewTour = catchAsync(async (req, res, next) => {
-  // We have to add a middleware for this to work
-  console.log(req.body);
 
-  //If we pass extra parameters in the body they will be ignored as schema is already designed
-
-
-  // Creating tour using mongoose and real database
-  //Directly create document without creating model object
-  // try {
-  //If any validation fails or any other error while adding to database
   const newTour = await Tour.create(req.body);
   res.status(201).json({
     status: 'success',
@@ -135,13 +115,6 @@ exports.createNewTour = catchAsync(async (req, res, next) => {
       tour: newTour
     }
   })
-  //error will be catched here
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
 
 })
 
@@ -171,15 +144,6 @@ exports.updateTour = catchAsync(async (req, res, next) => {
       updatedTour
     }
   });
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
-
-
-
 
 })
 
@@ -199,12 +163,7 @@ exports.deleteTour = catchAsync(async (req, res, next) => {
   res.status(204).json({
     status: 'success',
   })
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
+
 })
 
 
@@ -246,12 +205,7 @@ exports.getTourStats = catchAsync(async (req, res, next) => {
       stats
     }
   });
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
+
 })
 
 
@@ -297,12 +251,6 @@ exports.getMonthlyPlan = catchAsync(async (req, res, next) => {
       plan
     }
   });
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error
-  //   })
-  // }
 })
 
 /**
