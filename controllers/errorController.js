@@ -12,7 +12,7 @@ const handleCastErrorDB = (err) => {
 
 // handle error for duplicating unique field, it is managed by mongoDB driver and not mongoose
 const handleDuplicateFieldsDB = (err) => {
-  const message = `Duplicate field value : ${err.keyValue.name} : Please use another value!`
+  const message = `Duplicate field value : ${((err.keyValue.name) || (err.keyValue.email))} : Please use another value!`
   return new AppError(message, 400);
 }
 

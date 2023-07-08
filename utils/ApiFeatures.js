@@ -56,7 +56,6 @@ module.exports = class ApiFeatures {
 
   paginate() {
     // 4) Pagination
-
     // skip(num) skip <num> no. of documents before querying data
     // limit() no. of documents can be limited by this
     // page=2 & limit=5 ==> Skip 5 docs and then return next 5
