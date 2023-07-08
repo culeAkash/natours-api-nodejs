@@ -72,6 +72,7 @@ module.exports = (err, req, res, next) => {
 
   // * we want to send errors based on environment
   const currEnv = process.env.NODE_ENV;
+  console.log(currEnv);
 
   if (currEnv === 'development') {
     console.log(err.name, '61');
@@ -79,7 +80,10 @@ module.exports = (err, req, res, next) => {
   }
   else if (currEnv === 'production') {
 
+    // console.log(err.message);
     let error = { ...err };
+    error.message = err.message;
+    // console.log(error.message);
 
     if (err.name === 'CastError') error = handleCastErrorDB(error)
 
@@ -87,6 +91,7 @@ module.exports = (err, req, res, next) => {
 
     if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
 
+    console.log(error);
     sendErrorProd(error, res);
     // res.json({})
   }

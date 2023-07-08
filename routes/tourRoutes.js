@@ -10,6 +10,7 @@ const {
   createNewTour,
   aliasTopTours, getTourStats, getMonthlyPlan
 } = require('../controllers/tourController');
+const authController = require('../controllers/authController');
 
 // * Map the given param placeholder name(s) to the given callback(s).
 
@@ -30,9 +31,11 @@ router.route('/tour-stats').get(getTourStats)
 router.route('/monthly-plan/:year').get(getMonthlyPlan)
 
 
+// ? Now we want to restrict the getAllTours route for authenticated users only. So we will use a middleware function before calling the gatAllTours controller 
+
 router
   .route('/')
-  .get(getAllTours)
+  .get(authController.authenticate, getAllTours)
   //we can chain multiple middleware functions to get executed one by one
   .post(createNewTour);
 
