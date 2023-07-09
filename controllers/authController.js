@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { promisify } = require('util');
 
 const User = require('./../models/userModel');
 const catchAsync = require('../utils/CatchAsync')
@@ -22,7 +23,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm
+    passwordConfirm: req.body.passwordConfirm,
+    passwordChangedAt: req.body.passwordChangedAt
   });
 
   // * Even if a user tries to input a role manually then also he/she won't be able to do it
@@ -62,7 +64,7 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password', 401));
   }
 
-  console.log(user);
+  // console.log(user);
 
   // * Step 3 : If everthing OK,create and send accessToken to the client 
   const accessToken = signToken(user._id);
@@ -79,16 +81,44 @@ exports.login = catchAsync(async (req, res, next) => {
 exports.authenticate = catchAsync(async (req, res, next) => {
 
   // TODO :  Step 1) Get the token and check if it exists in the request
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  // console.log(token);
+
+  if (!token) {
+    return next(new AppError("You are not logged in! Please log in to get access", 401));
+  }
+
+  /* // TODO Step 2) Verification of token
+  * - Verify that the provided JSON Web Token is a valid one by checking its signature against our secret key
+  * - Also check if the token hasn't expired yet 
+  */
+
+  // ?jwt.verify is a synchronous function and takes a callback as its thrid param which gets called upon successful verification
+  // We promisified the function with promisify utility of node and now we can use async await here
+  const decodedToken = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+  console.log(decodedToken.userId);
 
 
-  // TODO Step 2) Verification of token
+  // TODO Step 3) Check if user exists with the token
+  const freshUser = await User.findById(decodedToken.userId);
+
+  if (!freshUser) {
+    return next(new AppError("The user belonging to this token does no longer exist!", 401));
+  }
 
 
-  // TODO Step 3) Check if user exists
+  // TODO Step 4) Check if user changed password after JWT was issued
+  if (freshUser.changedPasswordAfter(decodedToken.iat)) {
+    return next(new AppError('User recently changed password!, Please login again.', 401));
+  }
 
-
-  // TODO Step 3) Check if user changed password after JWT was issued
-
-
+  // * GRANT ACCESS TO PROTECTED ROUTE
+  req.user = freshUser;
   next();
 })

@@ -38,7 +38,8 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Passwords do not match'
     }
-  }
+  },
+  passwordChangedAt: Date
 });
 
 // Password encryption
@@ -61,6 +62,23 @@ userSchema.pre('save', async function (next) {
 // * This is an instance method, thus it will be available for all user documents
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
+}
+
+userSchema.methods.changedPasswordAfter = function (jwtTimeStamp) {
+
+  if (this.passwordChangedAt) {
+
+    const changedTimeStamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+
+
+    console.log(changedTimeStamp, jwtTimeStamp);
+    // Password was changed after jwt issue then it sends true, and restricts user 
+    return jwtTimeStamp < changedTimeStamp; // 100 < 200
+
+  }
+
+  // false => not changed
+  return false;
 }
 
 
