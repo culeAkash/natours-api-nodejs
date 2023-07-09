@@ -39,6 +39,9 @@ router
   //we can chain multiple middleware functions to get executed one by one
   .post(createNewTour);
 
-router.route('/:id').patch(updateTour).delete(deleteTour).get(getTourById);
+router.route('/:id')
+  .patch(updateTour)
+  .delete(authController.authenticate, authController.restrictTo('admin', 'lead-guide'), deleteTour)
+  .get(getTourById);
 
 module.exports = router;

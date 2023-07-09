@@ -1,9 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
+const crypto = require('crypto');
 
 const User = require('./../models/userModel');
-const catchAsync = require('../utils/CatchAsync')
-const AppError = require('../utils/AppError')
+const catchAsync = require('../utils/CatchAsync');
+const AppError = require('../utils/AppError');
+const sendEmail = require('../utils/email');
 
 
 
@@ -24,7 +26,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    passwordChangedAt: req.body.passwordChangedAt
+    passwordChangedAt: req.body.passwordChangedAt,
+    role: req.body.role
   });
 
   // * Even if a user tries to input a role manually then also he/she won't be able to do it
@@ -121,4 +124,116 @@ exports.authenticate = catchAsync(async (req, res, next) => {
   // * GRANT ACCESS TO PROTECTED ROUTE
   req.user = freshUser;
   next();
+})
+
+
+// we can't pass additional params to a middleware function that's why we are using wrapper function here which will take roles as input and return a middleware
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    // roles = ['admin','lead-guide'],if role='user'=> unauth
+    // console.log(roles);
+    // console.log(roles.includes(req.user.role));
+    if (!roles.includes(req.user?.role)) {
+      console.log(req.user.role);
+      return next(new AppError('You do not have permission to perform this action', 403));
+    }
+    next();
+  }
+
+}
+
+
+// * Reset password functionality
+// ? Step 1 : User gives his/her email in a post request and the server will then send a token to that email.
+// ? Step 2 : Now the user will then send another post request to reset the password with the token from email and new password
+
+// ? With this password will get changed
+
+
+// TODO : Step 1
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  // TODO Step 1 : Get user based on posted email
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) {
+    return next(new AppError('There is no user with that email address', 404));
+  }
+
+  //TODO Step 2 : Generate the random reset token
+  const resetToken = user.createPasswordResetToken();
+
+  // * We don't have the confirmPassword field in our document at this moment so, mongoose will give validation error as confirmpassword is a required field in our model, so we have to deactivate the validation mechanism, also we can't use update as 
+  await user.save({ validateBeforeSave: false });
+
+  //TODO Step 3 : Send it to the user's email
+  const resetURL = `${req.protocol}://${req.get('host')}/api/v1/users/resetpassword/${resetToken}`;
+
+  const message = `Forgot your passwor? Submit a PATCH request with your new password and passwordConfirm to ${resetURL}.\nIf you didn't, please ignore this`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your password reset token (valid for 10 mins)',
+      message
+    })
+  } catch (error) {
+    console.log(error);
+    // If there is error in sending the email rest the token and the password expires field
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    await user.save({ validateBeforeSave: false });
+
+    return next(new AppError('There was an error sending the email, Try again later!!!', 500));
+  }
+
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Token sent to email'
+  })
+});
+
+
+// TODO : Step 2
+exports.resetPassword = catchAsync(async (req, res, next) => {
+
+  // TODO Step 1) Get user based on the token
+  // * the token coming in the url is the non-encrypted one, but the token in DB is encrypted token
+
+  //TODO Hash the token coming in the url and match with the DB token
+
+  const token = req.params.token;
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  // get the user with the passed token and also check whether the user's token has expired
+  // ? If the passwordResetExpires > current Time then only it is not expired
+  const user = await User.findOne({ passwordResetToken: hashedToken, passwordResetExpires: { $gt: Date.now() } });
+
+
+  //TODO Step 2) If token has not expired, and there is user, set the new password
+  if (!user) {
+    return next(new AppError('Token is invalid or has expired', 400));
+  }
+
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+
+
+  //TODO Step 3) Update the changePasswordAt property for the user
+
+
+
+  //TODO Step 4) Log the user in, Send JWT
+  const accessToken = signToken(user._id);
+
+
+  res.status(200).json({
+    status: 'success',
+    accessToken
+  })
+
 })

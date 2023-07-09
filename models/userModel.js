@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto')
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -22,6 +23,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'default_photo',
   },
+  role: {
+    type: String,
+    enum: {
+      values: ['user', 'guide', 'lead-guide', 'admin'],
+      message: 'User role is invalid'
+    },
+    default: 'user'
+  },
   password: {
     type: String,
     required: [true, 'Provide a password'],
@@ -39,7 +48,9 @@ const userSchema = new mongoose.Schema({
       message: 'Passwords do not match'
     }
   },
-  passwordChangedAt: Date
+  passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date
 });
 
 // Password encryption
@@ -64,6 +75,7 @@ userSchema.methods.correctPassword = async function (candidatePassword, userPass
   return await bcrypt.compare(candidatePassword, userPassword);
 }
 
+// instance method to check for password change time w.r.t token generation time
 userSchema.methods.changedPasswordAfter = function (jwtTimeStamp) {
 
   if (this.passwordChangedAt) {
@@ -80,6 +92,37 @@ userSchema.methods.changedPasswordAfter = function (jwtTimeStamp) {
   // false => not changed
   return false;
 }
+
+//On user using the forgot password functionality, this instance method will create a new resetToken and encrypt it to store in DB for security measures
+userSchema.methods.createPasswordResetToken = function () {
+
+  // Generate token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  // We should never store a plain token in the DB as well, we should encrypt it like password
+
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  console.log({ resetToken }, this.passwordResetToken);
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+
+}
+
+
+userSchema.pre('save', function (next) {
+  let user = this;
+
+  // Only run if password was actually modified, or the document is new
+  if (!user.isModified("password") || this.isNew) return next();
+  // Sometimes it is possible that saving to DB is slower than JWT generation hence, it will be rendered as that JWT was built before the password change
+  //And then the server won't allow the user to access the resource
+  // We are subtracting 1s from passwordChangedAt so that it always sets before token issue
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+
+})
 
 
 const User = mongoose.model('User', userSchema);
