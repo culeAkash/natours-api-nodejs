@@ -50,7 +50,12 @@ const userSchema = new mongoose.Schema({
   },
   passwordChangedAt: Date,
   passwordResetToken: String,
-  passwordResetExpires: Date
+  passwordResetExpires: Date,
+  active: {
+    type: Boolean,
+    default: true,
+    select: false
+  }
 });
 
 // Password encryption
@@ -69,6 +74,13 @@ userSchema.pre('save', async function (next) {
   next();
 
 })
+
+// Now for all the find functions, only users with active:true will be queried, thus even for authorization, those users will fail even if their token is active
+userSchema.pre(/^find/, function (next) {
+  // this points to the current query
+  this.find({ active: { $ne: false } });
+  next();
+});
 
 // * This is an instance method, thus it will be available for all user documents
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {

@@ -25,9 +25,9 @@ exports.signup = catchAsync(async (req, res, next) => {
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
-    passwordChangedAt: req.body.passwordChangedAt,
-    role: req.body.role
+    passwordConfirm: req.body.passwordConfirm
+    // passwordChangedAt: req.body.passwordChangedAt,
+    // role: req.body.role
   });
 
   // * Even if a user tries to input a role manually then also he/she won't be able to do it
@@ -237,3 +237,50 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   })
 
 })
+
+
+
+// TODO : We have created a forgot and reset password functionality but we want our user to be able to change password after login also
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  // TODO check if password present in the body
+
+  const currentPassword = req.body.currentPassword;
+  const newPassword = req.body.newPassword;
+  const passwordConfirm = req.body.passwordConfirm;
+
+  if (!currentPassword || !newPassword || !passwordConfirm) {
+    return next(new AppError('Please provide both old and new password correctly', 400));
+  }
+
+
+  // TODO Step 1) Get user from the collection
+  const user = await User.findOne({ _id: req.user._id }).select('+password');
+
+
+  // TODO Step 2)Check if given password is correct
+
+
+  if (!(await user.correctPassword(currentPassword, user.password))) {
+    return next(new AppError('Password is not correct, Please give correct password', 401));
+  }
+
+  //TODO Step 3) If so, update password
+  user.password = newPassword;
+  user.passwordConfirm = passwordConfirm;
+  await user.save();
+
+  //TODO Step 4) Log user in,send JWT token
+
+  const accessToken = signToken(user._id);
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Password is changed successfully',
+    accessToken
+  })
+})
+
+
+
+// TODO currently logged in user to change user data
