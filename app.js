@@ -3,6 +3,14 @@ const express = require('express');
 const fs = require('fs');
 // const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit')
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize')
+const xss = require('xss-clean')
+const hpp = require('hpp');
+
+
+
 const AppError = require('./utils/AppError')
 const globalErrorHandler = require('./controllers/errorController')
 
@@ -14,14 +22,55 @@ const app = express();
 
 
 
-// For parsing data coming in post request
-app.use(express.json());
+// For parsing data coming in post request in the body
+app.use(express.json({
+  // body larger than 10kb won't be accepted
+  limit: '10kb'
+}));
+
+//Data santization against no-sql query injection
+// Sanitizes all the mongo query symbols from the body
+app.use(mongoSanitize());
+
+//Data sanitization against XSS
+app.use(xss());
+
+// Prevent param pollution : removing duplicate params in request
+// whitelist : for these params duplicates won't be vanished
+app.use(hpp({
+  whitelist: [
+    'duration',
+    'ratingsQuantity',
+    'ratingsAverage',
+    'maxGroupSize',
+    'difficulty',
+    'price'
+  ]
+}));
 
 console.log(process.env.NODE.ENV);
+// Global middlewares
+
+// Security HTTp headers
+app.use(helmet());
+
+
 if (process.env.NODE_ENV === 'development') {
   //logging in express is done by morgan external package
   app.use(morgan('dev'));
 }
+
+// Rate limiting for better security improving security from brute force attacks 
+// Allows 100 requests from same IP in one hour
+const limiter = rateLimit({
+  max: 3,
+  windowMs: 60 * 60 * 1000,
+  message: 'Too many requests from this IP, please try again in an hour'
+})
+app.use("/api", limiter);
+
+
+
 
 
 // Declaring our own middleware

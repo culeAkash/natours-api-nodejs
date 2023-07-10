@@ -15,6 +15,26 @@ const signToken = (userId) => {
   });
 }
 
+const createAccessToken = (user, res) => {
+
+  const cookieOptions = {
+    expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
+    httpOnly: true
+  }
+
+  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
+
+  const accessToken = signToken(user._id);
+
+  // cookie creation
+  res.cookie('accessToken', accessToken, cookieOptions);
+
+  // removes password from response
+  user.password = undefined;
+
+  return accessToken;
+}
+
 
 // ! We don't have to write the try-catch block as on signup call the catchAsync function will be called which will in turn execute the async code inside it and catch any errors if originate and throw the error all together to be handled by the global error handler
 exports.signup = catchAsync(async (req, res, next) => {
@@ -34,7 +54,8 @@ exports.signup = catchAsync(async (req, res, next) => {
 
 
   // * JSON Web token auth
-  const accessToken = signToken(newUser._id)
+  // const accessToken = signToken(newUser._id)
+  const accessToken = createAccessToken(newUser, res);
 
   // * Send the accessToken to the user
   res.status(201).json({
@@ -70,7 +91,8 @@ exports.login = catchAsync(async (req, res, next) => {
   // console.log(user);
 
   // * Step 3 : If everthing OK,create and send accessToken to the client 
-  const accessToken = signToken(user._id);
+  // const accessToken = signToken(user._id);
+  const accessToken = createAccessToken(user, res);
 
 
   res.status(200).json({
@@ -228,7 +250,8 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
 
   //TODO Step 4) Log the user in, Send JWT
-  const accessToken = signToken(user._id);
+  // const accessToken = signToken(user._id);
+  const accessToken = createAccessToken(user, res);
 
 
   res.status(200).json({
@@ -272,7 +295,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 
   //TODO Step 4) Log user in,send JWT token
 
-  const accessToken = signToken(user._id);
+  const accessToken = createAccessToken(user, res);
 
   res.status(200).json({
     status: 'success',
@@ -280,7 +303,3 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     accessToken
   })
 })
-
-
-
-// TODO currently logged in user to change user data
