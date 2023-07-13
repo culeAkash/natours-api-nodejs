@@ -87,7 +87,13 @@ exports.getTourById = catchAsync(async (req, res, next) => {
 
   const tour =
     // await Tour.findById(reqId);
-    await Tour.findOne({ _id: req.params.id })
+    await Tour.findOne({ _id: req.params.id }).populate('reviews');
+  // ? populate() populates the field specified in the path with data from the model defined in the ref in the parent schema
+  // ! We will use query middleware for this
+  // .populate({
+  //   path: 'guides',
+  //   select: '-__v -passwordChangedAt'
+  // });
 
   if (!tour) {
     return next(new AppError(`No tour found with id: ${req.params.id}`, 404));

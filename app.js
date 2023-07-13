@@ -17,6 +17,7 @@ const globalErrorHandler = require('./controllers/errorController')
 
 const userRouter = require('./routes/userRoutes')
 const tourRouter = require('./routes/tourRoutes')
+const reviewRouter = require('./routes/reviewRoutes')
 
 const app = express();
 
@@ -63,7 +64,7 @@ if (process.env.NODE_ENV === 'development') {
 // Rate limiting for better security improving security from brute force attacks 
 // Allows 100 requests from same IP in one hour
 const limiter = rateLimit({
-  max: 3,
+  max: 1000,
   windowMs: 60 * 60 * 1000,
   message: 'Too many requests from this IP, please try again in an hour'
 })
@@ -88,6 +89,9 @@ app.use('/api/v1/tours', tourRouter);
 
 //User routes
 app.use('/api/v1/users', userRouter);
+
+//Review routes
+app.use('/api/v1/reviews', reviewRouter);
 
 
 //Router handler for unhandled routes

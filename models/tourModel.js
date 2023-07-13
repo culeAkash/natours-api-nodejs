@@ -74,11 +74,47 @@ const toursSchema = new mongoose.Schema({
     //Hide this property from response by default 
     select: false
   },
-  startDates: [Date]
+  startDates: [Date],
   // secretTour: {
   //   type: Boolean,
   //   default: false
   // }
+  // * modelling geospatial data for locations to embed into the tours schema
+  startLocation: {
+    type: {
+      type: String,
+      default: 'Point',
+      enum: ['Point']
+    },
+    //coordinates must be a number array
+    coordinates: [Number],
+    address: String,
+    description: String
+  },
+  //* to embed data we have to specify array of that data model into the praent schema, then only they will be treated as seperate documents and not simple objects
+  locations: [{
+    type: {
+      type: String,
+      default: 'Point',
+      enum: ['Point']
+    },
+    //coordinates must be a number
+    coordinates: [Number],
+    address: String,
+    description: String,
+    // *the day of the tour on which the users will visit this location
+    day: Number
+  }],
+  //referencing users in tour document
+  guides: [
+    // guides must be an array
+    {
+      // of type mongoose objectId
+      type: mongoose.Schema.ObjectId,
+      // * The "ref" property is set to 'User', indicating that the ObjectIDs in the "guides" array should reference documents in the "User" model
+      ref: 'User'
+    }
+  ]
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -88,6 +124,14 @@ const toursSchema = new mongoose.Schema({
 toursSchema.virtual('durationWeeks').get(function () {
   return this.duration / 7;
 })
+
+
+// virtual populating the reviews for a specific tour
+toursSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'tour',
+  localField: '_id'
+});
 
 
 // QUERY MIDDLEWARE
@@ -103,6 +147,18 @@ toursSchema.virtual('durationWeeks').get(function () {
 //   console.log(this);
 //   next();
 // })
+
+
+// Just before find+() is executed this middleware will get executed
+// the process of automatically replacing the specified paths in the document with document(s) from other collection(s) is called population.
+toursSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt'
+  });
+
+  next();
+})
 
 
 //Creation of models for tours
