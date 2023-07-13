@@ -1,34 +1,19 @@
 const Review = require('../models/ReviewModel')
 const catchAsync = require('../utils/CatchAsync')
+const factory = require('../controllers/handlerFactory')
 
 
+// middleware to enable use of factory function and decoupling
+exports.setTourUserIds = (req, res, next) => {
+    // allow nested routes
+    if (!req.body.tour) req.body.tour = req.params.tourId;
+    if (!req.body.user) req.body.user = req.user.id;
+    next();
+}
 
 
-exports.createnewReview = catchAsync(async (req, res, next) => {
-    const reviewData = req.body;
-
-    const newReview = await Review.create({ user: req.user._id, ...reviewData });
-
-    res.status(201).json({
-        status: 'success',
-        data: {
-            newReview
-        }
-    })
-})
-
-
-exports.getAllReviews = catchAsync(async (req, res, next) => {
-
-    const reviews = await Review.find();
-    // console.log(reviews);
-
-
-    res.status(200).json({
-        status: 'success',
-        data: {
-            reviews: reviews
-        }
-    })
-
-})
+exports.createnewReview = factory.createOne(Review);
+exports.getAllReviews = factory.getAll(Review);
+exports.getReviewById = factory.getOne(Review);
+exports.deleteReview = factory.deleteOne(Review);
+exports.updateReview = factory.updateOne(Review);

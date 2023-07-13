@@ -6,6 +6,7 @@ const router = express.Router();
 
 const userController = require('./../controllers/userController');
 const authController = require('./../controllers/authController');
+const reviewController = require('../controllers/reviewController')
 
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
@@ -18,7 +19,6 @@ router.delete('/deleteMe', authController.authenticate, userController.deleteMe)
 router.
   route('/')
   .get(userController.getAllUsers)
-  .post(userController.createNewUser);
 
 router
   .route("/:id")
