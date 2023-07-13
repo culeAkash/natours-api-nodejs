@@ -1,4 +1,5 @@
 const mongooose = require('mongoose')
+const Tour = require('./tourModel')
 
 const reviewSchema = new mongooose.Schema({
     review: {
@@ -12,7 +13,7 @@ const reviewSchema = new mongooose.Schema({
     },
     createdAt: {
         type: Date,
-        default: Date.now()
+        default: Date.now
     },
     user: {
         type: mongooose.Schema.ObjectId,
@@ -44,6 +45,58 @@ reviewSchema.pre(/^find/, function (next) {
     // });
     next();
 })
+
+
+// Static method : Can be called directly on the model
+// method to get average rating and num of ratings of a particular tour 
+reviewSchema.statics.calculateAverageRatings = async function (tourId) {
+    // this => poimts to the mode
+    // console.log(tourId);
+    const stats = await this.aggregate([
+        { $match: { tour: tourId } },
+        {
+            $group: {
+                _id: '$tour',
+                numberOfRatings: { $sum: 1 },
+                averageRatings: { $avg: '$rating' }
+            }
+        }
+    ])
+
+    console.log(stats);
+
+    // save rating stats to tour with given id
+    if (stats.length > 0)
+        await Tour.findByIdAndUpdate(tourId, {
+            ratingsQuantity: stats[0].numberOfRatings,
+            ratingsAverage: stats[0].averageRatings
+        })
+}
+
+
+// we want to calculate the average rating every time after new review is created
+reviewSchema.post('save', function () {
+    // this => current review
+    // * this.constructor => points to the model, we need to use it as Review is not defined upto this line
+    this.constructor.calculateAverageRatings(this.tour);
+})
+
+
+
+//findByIdAndUpdate
+//findByIdAndDelete
+reviewSchema.pre(/^findOneAnd/, async function (next) {
+    // passing the review detail to the post middleware from the pre middleware by binding the review to the query
+    this.review = await this.findOne();
+    next();
+})
+
+reviewSchema.post(/^findOneAnd/, async function () {
+    // access the review model and call the static method
+    // await this.findOne(); doesn't work here, already executed
+    await this.review.constructor.calculateAverageRatings(this.review.tour);
+})
+
 
 
 const Review = mongooose.model('Review', reviewSchema);

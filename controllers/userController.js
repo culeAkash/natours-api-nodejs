@@ -18,6 +18,13 @@ const filterObj = (obj, ...allowedFields) => {
 // User route handlers
 
 
+// faking id coming from params before calling the get user by id so we can use that function in here and also use the current logged in user id comming from authController.authenticate()
+exports.getMe = (req, res, next) => {
+  req.params.id = req.user._id;
+  next();
+}
+
+
 // Controller to update user details other than password
 exports.updateMe = CatchAsync(async (req, res, next) => {
   // TODO 1) Create error if user posts password data

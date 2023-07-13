@@ -38,19 +38,19 @@ router.route('/top-5-cheap').get(aliasTopTours, getAllTours)
 //router for aggragation
 router.route('/tour-stats').get(getTourStats)
 
-router.route('/monthly-plan/:year').get(getMonthlyPlan)
+router.route('/monthly-plan/:year').get(authController.authenticate, authController.restrictTo('admin', 'lead-guide', 'guide'), getMonthlyPlan)
 
 
 // ? Now we want to restrict the getAllTours route for authenticated users only. So we will use a middleware function before calling the gatAllTours controller 
 
 router
   .route('/')
-  .get(authController.authenticate, getAllTours)
+  .get(getAllTours)
   //we can chain multiple middleware functions to get executed one by one
-  .post(createNewTour);
+  .post(authController.authenticate, authController.restrictTo('admin', 'lead-guide'), createNewTour);
 
 router.route('/:id')
-  .patch(updateTour)
+  .patch(authController.authenticate, authController.restrictTo('admin', 'lead-guide'), updateTour)
   .delete(authController.authenticate, authController.restrictTo('admin', 'lead-guide'), deleteTour)
   .get(getTourById);
 
